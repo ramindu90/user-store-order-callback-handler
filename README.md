@@ -1,2 +1,2 @@
-# wso2-samples
-samples implemented related to wso2
+# Sample user-store-order-callback-handler
+Sample implemented related to user-store-order-callback-handler
