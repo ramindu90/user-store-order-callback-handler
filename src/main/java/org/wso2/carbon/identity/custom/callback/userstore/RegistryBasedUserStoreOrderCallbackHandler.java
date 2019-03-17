@@ -25,10 +25,6 @@ import org.wso2.carbon.base.MultitenantConstants;
 import org.wso2.carbon.context.CarbonContext;
 import org.wso2.carbon.context.PrivilegedCarbonContext;
 import org.wso2.carbon.context.RegistryType;
-import org.wso2.carbon.identity.application.authentication.framework.context.AuthenticationContext;
-import org.wso2.carbon.identity.application.authentication.framework.exception.FrameworkException;
-import org.wso2.carbon.identity.application.authentication.framework.handler.request.UserStoreOrderCallbackHandler;
-import org.wso2.carbon.identity.application.common.model.ServiceProvider;
 import org.wso2.carbon.identity.core.util.IdentityTenantUtil;
 import org.wso2.carbon.identity.custom.callback.userstore.internal.CustomCallbackUserstoreServiceComponentHolder;
 import org.wso2.carbon.registry.core.Registry;
@@ -36,47 +32,22 @@ import org.wso2.carbon.registry.core.RegistryConstants;
 import org.wso2.carbon.registry.core.Resource;
 import org.wso2.carbon.registry.core.exceptions.RegistryException;
 import org.wso2.carbon.registry.core.utils.RegistryUtils;
-import org.wso2.carbon.user.api.RealmConfiguration;
-import org.wso2.carbon.user.core.UserCoreConstants;
 import org.wso2.carbon.user.core.UserRealm;
 import org.wso2.carbon.user.core.UserStoreException;
-import org.wso2.carbon.user.core.UserStoreManager;
 import org.wso2.carbon.user.mgt.UserMgtConstants;
 
 import java.util.ArrayList;
 import java.util.List;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 
 /**
  */
-public class RegistryBasedUserStoreOrderCallbackHandler implements UserStoreOrderCallbackHandler {
+public class RegistryBasedUserStoreOrderCallbackHandler extends SimpleUserStoreOrderCallbackHandler {
 
     private static final Log log = LogFactory.getLog(RegistryBasedUserStoreOrderCallbackHandler.class);
 
-    public List<String> generateUserStoreOrder(HttpServletRequest request, HttpServletResponse response,
-                                               AuthenticationContext context) throws FrameworkException {
-        log.info("RegistryBasedUserStoreOrderCallbackHandler invoked");
-        List<String> userStoreOrder = buildOrderBySP(context.getServiceProviderName());
-        return userStoreOrder;
-    }
-
-    public List<String> generateUserStoreOrder(ServiceProvider serviceProvider) throws FrameworkException {
-        log.info("RegistryBasedUserStoreOrderCallbackHandler invoked!!");
-        List<String> userStoreOrder = buildOrderBySP(serviceProvider.getApplicationName());
-        return userStoreOrder;
-    }
-
-    private List<String> buildOrderBySP(String spName) {
-        log.info("SP Name: " + spName);
-        List<String> defaultUserStoreDomainList = getUserStoreDomainList();
-        List<String> userStoreOrder = excludeUserStoresForDefaultServiceProviders(spName, defaultUserStoreDomainList);
-
-        for (int i=0; i<userStoreOrder.size(); i++) {
-            log.info("UserStoreOrder: " + userStoreOrder.get(i));
-        }
-        return userStoreOrder;
-    }
+    private static final String REG_PATH = "userstore" + RegistryConstants.PATH_SEPARATOR + "metadata.xml";
+    private static final String REG_PROPERTY_SP_PREFIX = "specialSPPrefix";
+    private static final String REG_PROPERTY_USER_DOMAIN = "specialUserStoreDomainName";
 
     private List<String> excludeUserStoresForDefaultServiceProviders(String spName, List<String> domainNames) {
         List<String> userStoreOrder = new ArrayList<String>();
@@ -141,35 +112,6 @@ public class RegistryBasedUserStoreOrderCallbackHandler implements UserStoreOrde
         return userStoreOrder;
     }
 
-    private List<String> getUserStoreDomainList() {
-
-        List<String> domainNames = new ArrayList<String>();
-
-        try {
-            UserRealm realm = (UserRealm) CarbonContext.getThreadLocalCarbonContext().getUserRealm();
-            RealmConfiguration realmConfig = realm.getRealmConfiguration();
-            RealmConfiguration secondaryConfig = realmConfig;
-            UserStoreManager secondaryManager = realm.getUserStoreManager();
-
-            while (true) {
-                secondaryConfig = secondaryManager.getRealmConfiguration();
-                String domainName =
-                        secondaryConfig.getUserStoreProperty(UserCoreConstants.RealmConfig.PROPERTY_DOMAIN_NAME);
-                if (domainName != null && domainName.trim().length() > 0) {
-                    domainNames.add(domainName.toUpperCase());
-                }
-                secondaryManager = secondaryManager.getSecondaryUserStoreManager();
-                if (secondaryManager == null) {
-                    break;
-                }
-            }
-        } catch (UserStoreException e) {
-            log.error("Error while listing user store list", e);
-        }
-
-        return domainNames;
-    }
-
     /**
      * Get config system registry
      *
@@ -196,5 +138,57 @@ public class RegistryBasedUserStoreOrderCallbackHandler implements UserStoreOrde
 
     }
 
+    protected String getSpecialUserStoreDomainName() {
+        String specialSPPrefix = super.getSpecialSPPrefix();
+        specialSPPrefix = getValueFromRegistry(specialSPPrefix, REG_PROPERTY_SP_PREFIX);
+        return specialSPPrefix;
+    }
+
+    protected String getSpecialSPPrefix() {
+        String specialUserStoreDomainName = super.getSpecialUserStoreDomainName();
+        specialUserStoreDomainName = getValueFromRegistry(specialUserStoreDomainName, REG_PROPERTY_USER_DOMAIN);
+        return specialUserStoreDomainName;
+    }
+
+    private String getValueFromRegistry(String propertyName, String specialUserStoreDomainName2) {
+
+        try {
+            Registry registry = getConfigSystemRegistry();
+
+            log.info("path: " + REG_PATH);
+            if (registry.resourceExists(REG_PATH)) {
+                log.info("path exists: " + REG_PATH);
+
+                boolean loggedInUserChanged = false;
+                UserRealm realm =
+                        (UserRealm) CarbonContext.getThreadLocalCarbonContext().getUserRealm();
+
+                String username = CarbonContext.getThreadLocalCarbonContext().getUsername();
+                if (StringUtils.isBlank(username) || !realm.getAuthorizationManager().
+                        isUserAuthorized(username, REG_PATH, UserMgtConstants.EXECUTE_ACTION)) {
+
+                    //Logged in user is not authorized to create the permission.
+                    // Temporarily change the user to the admin for creating the permission
+                    PrivilegedCarbonContext.getThreadLocalCarbonContext().setUsername(
+                            realm.getRealmConfiguration().getAdminUserName());
+                    registry = (Registry) CarbonContext.getThreadLocalCarbonContext()
+                            .getRegistry(RegistryType.USER_CONFIGURATION);
+                    loggedInUserChanged = true;
+                }
+
+                Resource root = registry.get(REG_PATH);
+                propertyName = root.getProperty(specialUserStoreDomainName2);
+
+                if (loggedInUserChanged) {
+                    PrivilegedCarbonContext.getThreadLocalCarbonContext().setUsername(username);
+                }
+            }
+        } catch (RegistryException e) {
+            log.error("Error while reading registry.", e);
+        } catch (UserStoreException e) {
+            log.error("Error while setting authorization.", e);
+        }
+        return propertyName;
+    }
 
 }

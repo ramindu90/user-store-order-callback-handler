@@ -71,14 +71,15 @@ public class SimpleUserStoreOrderCallbackHandler implements UserStoreOrderCallba
     private List<String> excludeUserStoresForDefaultServiceProviders(String spName, List<String> domainNames) {
         List<String> userStoreOrder = new ArrayList<String>();
 
-        String specialSPPrefix = "MF_";
+        String specialSPPrefix = getSpecialSPPrefix();
+        String specialUserStoreDomainName = getSpecialUserStoreDomainName();
 
         if (spName.startsWith(specialSPPrefix)) {
-            userStoreOrder.add("Mainframe");
+            userStoreOrder.add(specialUserStoreDomainName);
 
         } else {
             for (int i=0; i<domainNames.size(); i++) {
-                if (!domainNames.get(i).equals("MAINFRAME")) {
+                if (!domainNames.get(i).equals(specialUserStoreDomainName)) {
                     userStoreOrder.add(domainNames.get(i));
                 }
             }
@@ -121,6 +122,14 @@ public class SimpleUserStoreOrderCallbackHandler implements UserStoreOrderCallba
         }
 
         return domainNames;
+    }
+
+    protected String getSpecialUserStoreDomainName() {
+        return "MF_";
+    }
+
+    protected String getSpecialSPPrefix() {
+        return "MAINFRAME";
     }
 
 
