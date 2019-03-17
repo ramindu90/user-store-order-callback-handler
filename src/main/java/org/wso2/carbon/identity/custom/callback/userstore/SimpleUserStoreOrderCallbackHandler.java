@@ -21,16 +21,17 @@ package org.wso2.carbon.identity.custom.callback.userstore;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.wso2.carbon.context.CarbonContext;
 import org.wso2.carbon.identity.application.authentication.framework.context.AuthenticationContext;
 import org.wso2.carbon.identity.application.authentication.framework.exception.FrameworkException;
 import org.wso2.carbon.identity.application.authentication.framework.handler.request.UserStoreOrderCallbackHandler;
 import org.wso2.carbon.identity.application.common.model.ServiceProvider;
+import org.wso2.carbon.identity.custom.callback.userstore.internal.CustomCallbackUserstoreServiceComponentHolder;
 import org.wso2.carbon.user.api.RealmConfiguration;
+import org.wso2.carbon.user.api.UserStoreManager;
 import org.wso2.carbon.user.core.UserCoreConstants;
-import org.wso2.carbon.user.core.UserRealm;
 import org.wso2.carbon.user.core.UserStoreException;
-import org.wso2.carbon.user.core.UserStoreManager;
+import org.wso2.carbon.user.core.common.AbstractUserStoreManager;
+import org.wso2.carbon.user.core.service.RealmService;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -91,25 +92,32 @@ public class SimpleUserStoreOrderCallbackHandler implements UserStoreOrderCallba
         List<String> domainNames = new ArrayList<String>();
 
         try {
-            UserRealm realm = (UserRealm) CarbonContext.getThreadLocalCarbonContext().getUserRealm();
-            RealmConfiguration realmConfig = realm.getRealmConfiguration();
-            RealmConfiguration secondaryConfig = realmConfig;
-            UserStoreManager secondaryManager = realm.getUserStoreManager();
+            RealmService realmService = CustomCallbackUserstoreServiceComponentHolder.getInstance().getRealmService();
+            UserStoreManager secondaryManager =
+                    realmService.getTenantUserRealm(-1234).getUserStoreManager();
+            RealmConfiguration secondaryConfig;
 
             while (true) {
-                secondaryConfig = secondaryManager.getRealmConfiguration();
-                String domainName =
-                        secondaryConfig.getUserStoreProperty(UserCoreConstants.RealmConfig.PROPERTY_DOMAIN_NAME);
-                if (domainName != null && domainName.trim().length() > 0) {
-                    domainNames.add(domainName.toUpperCase());
-                }
-                secondaryManager = secondaryManager.getSecondaryUserStoreManager();
-                if (secondaryManager == null) {
+                if (secondaryManager instanceof AbstractUserStoreManager) {
+                    AbstractUserStoreManager abstractUserStoreManager = (AbstractUserStoreManager) secondaryManager;
+                    secondaryConfig = abstractUserStoreManager.getRealmConfiguration();
+                    String domainName =
+                            secondaryConfig.getUserStoreProperty(UserCoreConstants.RealmConfig.PROPERTY_DOMAIN_NAME);
+                    if (domainName != null && domainName.trim().length() > 0) {
+                        domainNames.add(domainName.toUpperCase());
+                    }
+                    secondaryManager = abstractUserStoreManager.getSecondaryUserStoreManager();
+                    if (secondaryManager == null) {
+                        break;
+                    }
+                } else {
                     break;
                 }
             }
         } catch (UserStoreException e) {
             log.error("Error while listing user store list", e);
+        } catch (org.wso2.carbon.user.api.UserStoreException e) {
+            log.error("Error while loading realm", e);
         }
 
         return domainNames;
