@@ -20,9 +20,22 @@ package org.wso2.carbon.identity.custom.callback.userstore.internal;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.osgi.framework.BundleContext;
 import org.osgi.service.component.ComponentContext;
+import org.wso2.carbon.base.MultitenantConstants;
+import org.wso2.carbon.context.CarbonContext;
+import org.wso2.carbon.context.PrivilegedCarbonContext;
+import org.wso2.carbon.context.RegistryType;
+import org.wso2.carbon.identity.application.mgt.ApplicationManagementService;
+import org.wso2.carbon.identity.core.util.IdentityTenantUtil;
+import org.wso2.carbon.registry.core.Registry;
+import org.wso2.carbon.registry.core.RegistryConstants;
+import org.wso2.carbon.registry.core.Resource;
+import org.wso2.carbon.registry.core.ResourceImpl;
+import org.wso2.carbon.registry.core.exceptions.RegistryException;
 import org.wso2.carbon.registry.core.service.RegistryService;
+import org.wso2.carbon.registry.core.utils.RegistryUtils;
+import org.wso2.carbon.user.api.UserRealm;
+import org.wso2.carbon.user.core.UserStoreException;
 import org.wso2.carbon.user.core.service.RealmService;
 
 /**
@@ -35,25 +48,109 @@ import org.wso2.carbon.user.core.service.RealmService;
  * interface="org.wso2.carbon.user.core.service.RealmService"
  * cardinality="1..1" policy="dynamic" bind="setRealmService"
  * unbind="unsetRealmService"
+ * @scr.reference name="identity.application.management.component"
+ * interface="org.wso2.carbon.identity.application.mgt.ApplicationManagementService"
+ * cardinality="1..1" policy="dynamic" bind="setApplicationManagementService"
+ * unbind="unsetApplicationManagementService"
  **/
 public class CustomCallbackUserstoreServiceComponent {
     private static Log log = LogFactory.getLog(CustomCallbackUserstoreServiceComponent.class);
-    private static BundleContext bundleContext;
+
+//    public static final String REG_PATH = "userstore" + RegistryConstants.PATH_SEPARATOR + "metadata.xml";
+    public static final String REG_PATH = "metadata.xml";
+    public static final String REG_PROPERTY_SP_PREFIX = "specialSPPrefix";
+    public static final String REG_PROPERTY_SP_PREFIX_VALUE = "MF_";
+    public static final String REG_PROPERTY_USER_DOMAIN = "specialUserStoreDomainName";
+    public static final String REG_PROPERTY_USER_DOMAIN_VALUE = "MAINFRAME";
 
 
     protected void activate(ComponentContext context) {
-        log.info("CustomCallbackUserstoreServiceComponent bundle is initializing");
+        log.info("CustomCallbackUserstoreServiceComponent bundle is initializing.");
 
         try {
-            bundleContext = context.getBundleContext();
+            createUserStoreMetadataResource();
 
             if (log.isDebugEnabled()) {
                 log.debug("CustomCallbackUserstoreServiceComponent bundle is activated");
             }
-            log.info("CustomCallbackUserstoreServiceComponent bundle is activated");
+            log.info("CustomCallbackUserstoreServiceComponent bundle is activated.");
         } catch (Exception e) {
             log.error("Error while activating CustomCallbackUserstoreServiceComponent bundle", e);
         }
+    }
+
+    private void createUserStoreMetadataResource() {
+        String username = CarbonContext.getThreadLocalCarbonContext().getUsername();
+
+        try {
+            UserRealm realm =
+                    CustomCallbackUserstoreServiceComponentHolder.getInstance().getRealmService().getTenantUserRealm(-1234);
+
+            //Logged in user is not authorized to create the permission.
+            // Temporarily change the user to the admin for creating the permission
+            PrivilegedCarbonContext.getThreadLocalCarbonContext().setUsername(
+                    realm.getRealmConfiguration().getAdminUserName());
+
+
+            Registry registry = (Registry) CarbonContext.getThreadLocalCarbonContext().getRegistry(
+                    RegistryType.USER_CONFIGURATION);
+
+            if (!registry.resourceExists(REG_PATH)) {
+                if (log.isDebugEnabled()) {
+                    log.info("Userstore metadata registry resource not exists in the path: " + REG_PATH);
+                }
+
+                Resource metadata = new ResourceImpl();
+                metadata.setProperty(REG_PROPERTY_SP_PREFIX, REG_PROPERTY_SP_PREFIX_VALUE);
+                metadata.setProperty(REG_PROPERTY_USER_DOMAIN, REG_PROPERTY_USER_DOMAIN_VALUE);
+
+                registry.put(REG_PATH, metadata);
+
+                if (log.isDebugEnabled()) {
+                    log.info("Userstore metadata registry resource created succesfully in path: " + REG_PATH +
+                            "with properties, "+ REG_PROPERTY_SP_PREFIX + ": " + REG_PROPERTY_SP_PREFIX_VALUE + ", " +
+                            REG_PROPERTY_USER_DOMAIN + ": " + REG_PROPERTY_USER_DOMAIN_VALUE);
+                }
+
+            } else {
+                if (log.isDebugEnabled()) {
+                    log.info("Userstore metadata registry resource exists in the path: " + REG_PATH);
+                }
+            }
+        } catch (UserStoreException e) {
+            log.error("Error while setting authorization.", e);
+        } catch (RegistryException e) {
+            log.error("Error while creating registry resource:" + REG_PATH, e);
+        } catch (org.wso2.carbon.user.api.UserStoreException e) {
+            log.error("Error while loading tenant user realm.", e);
+        } finally {
+            PrivilegedCarbonContext.getThreadLocalCarbonContext().setUsername(username);
+        }
+    }
+
+    /**
+     * Get config system registry
+     *
+     * @return config system registry
+     * @throws org.wso2.carbon.registry.api.RegistryException
+     */
+    private Registry getConfigSystemRegistry() {
+
+        int tenantId = MultitenantConstants.INVALID_TENANT_ID;
+        try {
+            tenantId = CarbonContext.getThreadLocalCarbonContext().getTenantId();
+            RegistryUtils.initializeTenant(CustomCallbackUserstoreServiceComponentHolder.getInstance().
+                    getRegistryService(), tenantId);
+        } catch (org.wso2.carbon.registry.api.RegistryException e) {
+            log.error("Error loading tenant registry for tenant domain: " +
+                    IdentityTenantUtil.getTenantDomain(tenantId), e);
+        }
+        Registry tenantConfReg = (Registry) CarbonContext.getThreadLocalCarbonContext().getRegistry(
+                RegistryType.USER_CONFIGURATION);
+
+
+        return tenantConfReg;
+
     }
 
     protected void deactivate(ComponentContext context) {
@@ -89,6 +186,20 @@ public class CustomCallbackUserstoreServiceComponent {
             log.debug("Realm Service unset in CustomCallbackUserstoreServiceComponent bundle");
         }
         CustomCallbackUserstoreServiceComponentHolder.getInstance().setRealmService(null);
+    }
+
+    protected void setApplicationManagementService(ApplicationManagementService applicationManagementService) {
+        if (log.isDebugEnabled()) {
+            log.debug("Application Management Service set in CustomCallbackUserstoreServiceComponent bundle");
+        }
+        CustomCallbackUserstoreServiceComponentHolder.getInstance().setApplicationManagementService(applicationManagementService);
+    }
+
+    protected void unsetApplicationManagementService(ApplicationManagementService applicationManagementService) {
+        if (log.isDebugEnabled()) {
+            log.debug("Application Management Service unset in CustomCallbackUserstoreServiceComponent bundle");
+        }
+        CustomCallbackUserstoreServiceComponentHolder.getInstance().setApplicationManagementService(null);
     }
 
 }

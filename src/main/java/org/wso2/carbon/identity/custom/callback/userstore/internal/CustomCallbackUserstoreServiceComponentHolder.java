@@ -18,6 +18,7 @@
  */
 package org.wso2.carbon.identity.custom.callback.userstore.internal;
 
+import org.wso2.carbon.identity.application.mgt.ApplicationManagementService;
 import org.wso2.carbon.registry.core.service.RegistryService;
 import org.wso2.carbon.user.core.service.RealmService;
 
@@ -29,6 +30,7 @@ public class CustomCallbackUserstoreServiceComponentHolder {
     private RegistryService registryService;
 
     private RealmService realmService;
+    private ApplicationManagementService applicationManagementService;
 
     public static CustomCallbackUserstoreServiceComponentHolder getInstance() {
 
@@ -50,5 +52,9 @@ public class CustomCallbackUserstoreServiceComponentHolder {
 
     public void setRealmService(RealmService realmService) {
         this.realmService = realmService;
+    }
+
+    public void setApplicationManagementService(ApplicationManagementService applicationManagementService) {
+        this.applicationManagementService = applicationManagementService;
     }
 }

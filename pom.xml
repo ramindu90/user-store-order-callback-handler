@@ -137,15 +137,22 @@
                             org.wso2.carbon.identity.application.common.*;
                             version="${carbon.identity.package.import.version.range}",
 
+                            org.wso2.carbon.identity.application.mgt.*;
+                            version="${carbon.identity.package.import.version.range}",
+
                             org.wso2.carbon.identity.application.authentication.framework.*;
                             version="${carbon.identity.package.import.version.range}",
 
                             org.wso2.carbon.user.mgt;version="${carbon.identity.package.import.version.range}"
+
+
+
                         </Import-Package>
                         <Export-Package>
                             !org.wso2.carbon.identity.custom.callback.userstore.internal,
                             org.wso2.carbon.identity.custom.callback.userstore.*;
                         </Export-Package>
+                        <!--<DynamicImport-Package>*</DynamicImport-Package>-->
                     </instructions>
                 </configuration>
             </plugin>
