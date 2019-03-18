@@ -126,11 +126,11 @@ public class SimpleUserStoreOrderCallbackHandler implements UserStoreOrderCallba
     }
 
     protected String getSpecialUserStoreDomainName() {
-        return CustomCallbackUserstoreServiceComponent.REG_PROPERTY_SP_PREFIX_VALUE;
+        return CustomCallbackUserstoreServiceComponent.REG_PROPERTY_USER_DOMAIN_VALUE;
     }
 
     protected String getSpecialSPPrefix() {
-        return CustomCallbackUserstoreServiceComponent.REG_PROPERTY_USER_DOMAIN_VALUE;
+        return CustomCallbackUserstoreServiceComponent.REG_PROPERTY_SP_PREFIX_VALUE;
     }
 
 

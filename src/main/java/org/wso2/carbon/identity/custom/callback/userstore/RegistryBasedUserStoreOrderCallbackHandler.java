@@ -18,6 +18,7 @@
  */
 package org.wso2.carbon.identity.custom.callback.userstore;
 
+import com.ctc.wstx.util.StringUtil;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -44,20 +45,27 @@ public class RegistryBasedUserStoreOrderCallbackHandler extends SimpleUserStoreO
     private static final Log log = LogFactory.getLog(RegistryBasedUserStoreOrderCallbackHandler.class);
 
     protected String getSpecialUserStoreDomainName() {
-        String specialSPPrefix = super.getSpecialSPPrefix();
-        specialSPPrefix = getValueFromRegistry(specialSPPrefix,
-                CustomCallbackUserstoreServiceComponent.REG_PROPERTY_SP_PREFIX);
+
+        String specialSPPrefix = getValueFromRegistry(CustomCallbackUserstoreServiceComponent.REG_PROPERTY_USER_DOMAIN);
+        if (StringUtils.isBlank(specialSPPrefix)) {
+            specialSPPrefix = super.getSpecialSPPrefix();
+        }
         return specialSPPrefix;
     }
 
     protected String getSpecialSPPrefix() {
-        String specialUserStoreDomainName = super.getSpecialUserStoreDomainName();
-        specialUserStoreDomainName = getValueFromRegistry(specialUserStoreDomainName,
-                CustomCallbackUserstoreServiceComponent.REG_PROPERTY_USER_DOMAIN);
+
+        String specialUserStoreDomainName =
+                getValueFromRegistry(CustomCallbackUserstoreServiceComponent.REG_PROPERTY_SP_PREFIX);
+        if (StringUtils.isBlank(specialUserStoreDomainName)) {
+            specialUserStoreDomainName = super.getSpecialUserStoreDomainName();
+        }
         return specialUserStoreDomainName;
     }
 
-    private String getValueFromRegistry(String propertyName, String specialUserStoreDomainName2) {
+    private String getValueFromRegistry(String resourcePropertyName) {
+
+        String resourcePropertyValue = "";
 
         try {
             Registry registry = getConfigSystemRegistry();
@@ -85,7 +93,7 @@ public class RegistryBasedUserStoreOrderCallbackHandler extends SimpleUserStoreO
                 }
 
                 Resource root = registry.get(CustomCallbackUserstoreServiceComponent.REG_PATH);
-                propertyName = root.getProperty(specialUserStoreDomainName2);
+                resourcePropertyValue = root.getProperty(resourcePropertyName);
 
                 if (loggedInUserChanged) {
                     PrivilegedCarbonContext.getThreadLocalCarbonContext().setUsername(username);
@@ -96,7 +104,12 @@ public class RegistryBasedUserStoreOrderCallbackHandler extends SimpleUserStoreO
         } catch (UserStoreException e) {
             log.error("Error while setting authorization.", e);
         }
-        return propertyName;
+
+        if (log.isDebugEnabled()) {
+            log.debug("Registry property: " + resourcePropertyName + " has value: " + resourcePropertyValue);
+        }
+
+        return resourcePropertyValue;
     }
 
     /**

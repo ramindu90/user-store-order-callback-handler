@@ -65,14 +65,13 @@ public class CustomCallbackUserstoreServiceComponent {
 
 
     protected void activate(ComponentContext context) {
-        log.info("CustomCallbackUserstoreServiceComponent bundle is initializing.");
+
+        if (log.isDebugEnabled()) {
+            log.debug("CustomCallbackUserstoreServiceComponent bundle is initializing");
+        }
 
         try {
             createUserStoreMetadataResource();
-
-            if (log.isDebugEnabled()) {
-                log.debug("CustomCallbackUserstoreServiceComponent bundle is activated");
-            }
             log.info("CustomCallbackUserstoreServiceComponent bundle is activated.");
         } catch (Exception e) {
             log.error("Error while activating CustomCallbackUserstoreServiceComponent bundle", e);
@@ -97,7 +96,7 @@ public class CustomCallbackUserstoreServiceComponent {
 
             if (!registry.resourceExists(REG_PATH)) {
                 if (log.isDebugEnabled()) {
-                    log.info("Userstore metadata registry resource not exists in the path: " + REG_PATH);
+                    log.debug("Userstore metadata registry resource not exists in the path: " + REG_PATH);
                 }
 
                 Resource metadata = new ResourceImpl();
@@ -107,14 +106,14 @@ public class CustomCallbackUserstoreServiceComponent {
                 registry.put(REG_PATH, metadata);
 
                 if (log.isDebugEnabled()) {
-                    log.info("Userstore metadata registry resource created succesfully in path: " + REG_PATH +
+                    log.debug("Userstore metadata registry resource created succesfully in path: " + REG_PATH +
                             "with properties, "+ REG_PROPERTY_SP_PREFIX + ": " + REG_PROPERTY_SP_PREFIX_VALUE + ", " +
                             REG_PROPERTY_USER_DOMAIN + ": " + REG_PROPERTY_USER_DOMAIN_VALUE);
                 }
 
             } else {
                 if (log.isDebugEnabled()) {
-                    log.info("Userstore metadata registry resource exists in the path: " + REG_PATH);
+                    log.debug("Userstore metadata registry resource exists in the path: " + REG_PATH);
                 }
             }
         } catch (UserStoreException e) {
@@ -128,35 +127,7 @@ public class CustomCallbackUserstoreServiceComponent {
         }
     }
 
-    /**
-     * Get config system registry
-     *
-     * @return config system registry
-     * @throws org.wso2.carbon.registry.api.RegistryException
-     */
-    private Registry getConfigSystemRegistry() {
-
-        int tenantId = MultitenantConstants.INVALID_TENANT_ID;
-        try {
-            tenantId = CarbonContext.getThreadLocalCarbonContext().getTenantId();
-            RegistryUtils.initializeTenant(CustomCallbackUserstoreServiceComponentHolder.getInstance().
-                    getRegistryService(), tenantId);
-        } catch (org.wso2.carbon.registry.api.RegistryException e) {
-            log.error("Error loading tenant registry for tenant domain: " +
-                    IdentityTenantUtil.getTenantDomain(tenantId), e);
-        }
-        Registry tenantConfReg = (Registry) CarbonContext.getThreadLocalCarbonContext().getRegistry(
-                RegistryType.USER_CONFIGURATION);
-
-
-        return tenantConfReg;
-
-    }
-
     protected void deactivate(ComponentContext context) {
-        if (log.isDebugEnabled()) {
-            log.debug("CustomCallbackUserstoreServiceComponent bundle is deactivated");
-        }
         log.info("CustomCallbackUserstoreServiceComponent bundle is deactivated");
     }
 
@@ -201,5 +172,4 @@ public class CustomCallbackUserstoreServiceComponent {
         }
         CustomCallbackUserstoreServiceComponentHolder.getInstance().setApplicationManagementService(null);
     }
-
 }
