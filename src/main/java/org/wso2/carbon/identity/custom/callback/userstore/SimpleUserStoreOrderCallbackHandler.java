@@ -22,8 +22,6 @@ package org.wso2.carbon.identity.custom.callback.userstore;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.wso2.carbon.identity.application.authentication.framework.context.AuthenticationContext;
-import org.wso2.carbon.identity.application.authentication.framework.exception.FrameworkException;
-import org.wso2.carbon.identity.application.authentication.framework.handler.request.UserStoreOrderCallbackHandler;
 import org.wso2.carbon.identity.application.common.model.ServiceProvider;
 import org.wso2.carbon.identity.custom.callback.userstore.internal.CustomCallbackUserstoreServiceComponent;
 import org.wso2.carbon.identity.custom.callback.userstore.internal.CustomCallbackUserstoreServiceComponentHolder;
@@ -32,44 +30,56 @@ import org.wso2.carbon.user.api.UserStoreManager;
 import org.wso2.carbon.user.core.UserCoreConstants;
 import org.wso2.carbon.user.core.UserStoreException;
 import org.wso2.carbon.user.core.common.AbstractUserStoreManager;
+import org.wso2.carbon.user.core.config.UserStorePreferenceOrderSupplier;
 import org.wso2.carbon.user.core.service.RealmService;
 
 import java.util.ArrayList;
 import java.util.List;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 
 /**
  */
-public class SimpleUserStoreOrderCallbackHandler implements UserStoreOrderCallbackHandler {
+public class SimpleUserStoreOrderCallbackHandler implements UserStorePreferenceOrderSupplier {
 
     private static final Log log = LogFactory.getLog(SimpleUserStoreOrderCallbackHandler.class);
+    private AuthenticationContext context;
+    private ServiceProvider serviceProvider;
 
-    public List<String> generateUserStoreOrder(HttpServletRequest request, HttpServletResponse response,
-                                               AuthenticationContext context) throws FrameworkException {
-        log.info("SimpleUserStoreOrderCallbackHandler invoked");
-        List<String> userStoreOrder = buildOrderBySP(context.getServiceProviderName());
-        return userStoreOrder;
+    public SimpleUserStoreOrderCallbackHandler(AuthenticationContext context, ServiceProvider serviceProvider) {
+        this.context = context;
+        this.serviceProvider = serviceProvider;
     }
 
-    public List<String> generateUserStoreOrder(ServiceProvider serviceProvider) throws FrameworkException {
-        log.info("SimpleUserStoreOrderCallbackHandler invoked!!");
-        List<String> userStoreOrder = buildOrderBySP(serviceProvider.getApplicationName());
+    public SimpleUserStoreOrderCallbackHandler() {
+
+    }
+
+    public List<String> get() throws UserStoreException {
+
+        List<String> userStoreOrder;
+        if (log.isDebugEnabled()) {
+            log.debug("SimpleUserStoreOrderCallbackHandler invoked");
+        }
+        if (context != null) {
+            userStoreOrder = buildOrderBySP(context.getServiceProviderName());
+        } else {
+            userStoreOrder = buildOrderBySP(serviceProvider.getApplicationName());
+        }
         return userStoreOrder;
     }
 
     private List<String> buildOrderBySP(String spName) {
-        log.info("SP Name: " + spName);
+
         List<String> defaultUserStoreDomainList = getUserStoreDomainList();
         List<String> userStoreOrder = excludeUserStoresForDefaultServiceProviders(spName, defaultUserStoreDomainList);
 
-        for (int i=0; i<userStoreOrder.size(); i++) {
-            log.info("UserStoreOrder: " + userStoreOrder.get(i));
+        if(log.isDebugEnabled()) {
+            log.info("UserStore domains selected for the service provider: " + spName + " are: " + userStoreOrder);
         }
         return userStoreOrder;
     }
 
     private List<String> excludeUserStoresForDefaultServiceProviders(String spName, List<String> domainNames) {
+
         List<String> userStoreOrder = new ArrayList<String>();
 
         String specialSPPrefix = getSpecialSPPrefix();
@@ -79,9 +89,9 @@ public class SimpleUserStoreOrderCallbackHandler implements UserStoreOrderCallba
             userStoreOrder.add(specialUserStoreDomainName);
 
         } else {
-            for (int i=0; i<domainNames.size(); i++) {
-                if (!domainNames.get(i).equals(specialUserStoreDomainName)) {
-                    userStoreOrder.add(domainNames.get(i));
+            for (String domainName : domainNames) {
+                if (!domainName.equals(specialUserStoreDomainName)) {
+                    userStoreOrder.add(domainName);
                 }
             }
         }
@@ -126,12 +136,13 @@ public class SimpleUserStoreOrderCallbackHandler implements UserStoreOrderCallba
     }
 
     protected String getSpecialUserStoreDomainName() {
+
         return CustomCallbackUserstoreServiceComponent.REG_PROPERTY_USER_DOMAIN_VALUE;
     }
 
     protected String getSpecialSPPrefix() {
+
         return CustomCallbackUserstoreServiceComponent.REG_PROPERTY_SP_PREFIX_VALUE;
     }
-
 
 }

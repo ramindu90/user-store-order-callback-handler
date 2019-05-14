@@ -25,6 +25,8 @@ import org.wso2.carbon.base.MultitenantConstants;
 import org.wso2.carbon.context.CarbonContext;
 import org.wso2.carbon.context.PrivilegedCarbonContext;
 import org.wso2.carbon.context.RegistryType;
+import org.wso2.carbon.identity.application.authentication.framework.context.AuthenticationContext;
+import org.wso2.carbon.identity.application.common.model.ServiceProvider;
 import org.wso2.carbon.identity.core.util.IdentityTenantUtil;
 import org.wso2.carbon.identity.custom.callback.userstore.internal.CustomCallbackUserstoreServiceComponent;
 import org.wso2.carbon.identity.custom.callback.userstore.internal.CustomCallbackUserstoreServiceComponentHolder;
@@ -38,27 +40,36 @@ import org.wso2.carbon.user.mgt.UserMgtConstants;
 
 /**
  */
-public class RegistryBasedUserStoreOrderCallbackHandler extends SimpleUserStoreOrderCallbackHandler {
+public class RegistryBasedUserStoreOrderCallbackHandler extends SimpleUserStoreOrderCallbackHandler{
 
     private static final Log log = LogFactory.getLog(RegistryBasedUserStoreOrderCallbackHandler.class);
 
+    public RegistryBasedUserStoreOrderCallbackHandler(AuthenticationContext context, ServiceProvider serviceProvider) {
+        super(context, serviceProvider);
+    }
+
+    public RegistryBasedUserStoreOrderCallbackHandler() {
+        super();
+    }
+
+
     protected String getSpecialUserStoreDomainName() {
 
-        String specialSPPrefix = getValueFromRegistry(CustomCallbackUserstoreServiceComponent.REG_PROPERTY_USER_DOMAIN);
-        if (StringUtils.isBlank(specialSPPrefix)) {
-            specialSPPrefix = super.getSpecialSPPrefix();
+        String specialUserStoreDomain = getValueFromRegistry(CustomCallbackUserstoreServiceComponent.REG_PROPERTY_USER_DOMAIN);
+        if (StringUtils.isBlank(specialUserStoreDomain)) {
+            specialUserStoreDomain = super.getSpecialUserStoreDomainName();
         }
-        return specialSPPrefix;
+        return specialUserStoreDomain;
     }
 
     protected String getSpecialSPPrefix() {
 
-        String specialUserStoreDomainName =
+        String specialSPPrefix =
                 getValueFromRegistry(CustomCallbackUserstoreServiceComponent.REG_PROPERTY_SP_PREFIX);
-        if (StringUtils.isBlank(specialUserStoreDomainName)) {
-            specialUserStoreDomainName = super.getSpecialUserStoreDomainName();
+        if (StringUtils.isBlank(specialSPPrefix)) {
+            specialSPPrefix = super.getSpecialSPPrefix();
         }
-        return specialUserStoreDomainName;
+        return specialSPPrefix;
     }
 
     private String getValueFromRegistry(String resourcePropertyName) {
@@ -130,7 +141,6 @@ public class RegistryBasedUserStoreOrderCallbackHandler extends SimpleUserStoreO
         }
         Registry tenantConfReg = (Registry) CarbonContext.getThreadLocalCarbonContext().getRegistry(
                 RegistryType.USER_CONFIGURATION);
-
 
         return tenantConfReg;
 
