@@ -5,11 +5,14 @@ import org.wso2.carbon.identity.application.authentication.framework.handler.req
 import org.wso2.carbon.identity.application.common.model.ServiceProvider;
 import org.wso2.carbon.user.core.config.UserStorePreferenceOrderSupplier;
 
+import java.util.List;
+
 public class CustomUserStoreOrderCallbackFactory extends CallBackHandlerFactory {
 
     @Override
-    public UserStorePreferenceOrderSupplier createUserStorePreferenceOrderSupplier(AuthenticationContext context,
-                                                                          ServiceProvider serviceProvider) {
-        return new SimpleUserStoreOrderCallbackHandler(context, serviceProvider);
+    public UserStorePreferenceOrderSupplier<List<String>> createUserStorePreferenceOrderSupplier(AuthenticationContext
+                                                                                                        context,
+                                                                                                 ServiceProvider serviceProvider) {
+        return new RegistryBasedUserStoreOrderCallbackHandler(context, serviceProvider);
     }
 }

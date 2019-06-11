@@ -38,13 +38,14 @@ import java.util.List;
 
 /**
  */
-public class SimpleUserStoreOrderCallbackHandler implements UserStorePreferenceOrderSupplier {
+public class SimpleUserStoreOrderCallbackHandler implements UserStorePreferenceOrderSupplier<List<String>> {
 
     private static final Log log = LogFactory.getLog(SimpleUserStoreOrderCallbackHandler.class);
     private AuthenticationContext context;
     private ServiceProvider serviceProvider;
 
     public SimpleUserStoreOrderCallbackHandler(AuthenticationContext context, ServiceProvider serviceProvider) {
+
         this.context = context;
         this.serviceProvider = serviceProvider;
     }
@@ -72,7 +73,7 @@ public class SimpleUserStoreOrderCallbackHandler implements UserStorePreferenceO
         List<String> defaultUserStoreDomainList = getUserStoreDomainList();
         List<String> userStoreOrder = excludeUserStoresForDefaultServiceProviders(spName, defaultUserStoreDomainList);
 
-        if(log.isDebugEnabled()) {
+        if (log.isDebugEnabled()) {
             log.info("UserStore domains selected for the service provider: " + spName + " are: " + userStoreOrder);
         }
         return userStoreOrder;
