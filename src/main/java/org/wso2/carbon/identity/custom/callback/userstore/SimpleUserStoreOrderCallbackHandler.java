@@ -23,6 +23,8 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.wso2.carbon.identity.application.authentication.framework.context.AuthenticationContext;
 import org.wso2.carbon.identity.application.common.model.ServiceProvider;
+import org.wso2.carbon.identity.configuration.mgt.core.model.Attribute;
+import org.wso2.carbon.identity.configuration.mgt.core.model.Resource;
 import org.wso2.carbon.identity.custom.callback.userstore.internal.CustomCallbackUserstoreServiceComponent;
 import org.wso2.carbon.identity.custom.callback.userstore.internal.CustomCallbackUserstoreServiceComponentHolder;
 import org.wso2.carbon.user.api.RealmConfiguration;
@@ -80,30 +82,42 @@ public class SimpleUserStoreOrderCallbackHandler implements UserStorePreferenceO
     }
 
     private List<String> excludeUserStoresForDefaultServiceProviders(String spName, List<String> domainNames) {
-
         List<String> userStoreOrder = new ArrayList<String>();
+        Resource resource = getValuesFromConfigurationManager();
+        List<Attribute> attributes = resource.getAttributes();
 
-        String specialSPPrefix = getSpecialSPPrefix();
-        String specialUserStoreDomainName = getSpecialUserStoreDomainName();
-
-        if (spName.startsWith(specialSPPrefix)) {
-            userStoreOrder.add(specialUserStoreDomainName);
-
-        } else {
-            for (String domainName : domainNames) {
-                if (!domainName.equals(specialUserStoreDomainName)) {
-                    userStoreOrder.add(domainName);
+        boolean domainNameFound = false;
+        boolean addAllDomains = false;
+        for (Attribute attribute : attributes) {
+            if (spName.startsWith(attribute.getKey())) {
+                String[] domains = attribute.getValue().split(",");
+                for (int i=0; i<domains.length; i++) {
+                    if (domainNames.contains(domains[i])) {
+                        userStoreOrder.add(attribute.getValue());
+                        domainNameFound = true;
+                    } else if (domains[i].equalsIgnoreCase("add_all_ldap_domains")) {
+                        addAllDomains = true;
+                    }
                 }
             }
         }
 
+        if (!domainNameFound) {
+            for (String domainName : domainNames) {
+                userStoreOrder.add(domainName);
+            }
+        } else if (addAllDomains) {
+            for (String domainName : domainNames) {
+                if (!userStoreOrder.contains(domainName)) {
+                    userStoreOrder.add(domainName);
+                }
+            }
+        }
         return userStoreOrder;
     }
 
     private List<String> getUserStoreDomainList() {
-
         List<String> domainNames = new ArrayList<String>();
-
         try {
             RealmService realmService = CustomCallbackUserstoreServiceComponentHolder.getInstance().getRealmService();
             UserStoreManager secondaryManager =
@@ -135,15 +149,8 @@ public class SimpleUserStoreOrderCallbackHandler implements UserStorePreferenceO
 
         return domainNames;
     }
-
-    protected String getSpecialUserStoreDomainName() {
-
-        return CustomCallbackUserstoreServiceComponent.REG_PROPERTY_USER_DOMAIN_VALUE;
-    }
-
-    protected String getSpecialSPPrefix() {
-
-        return CustomCallbackUserstoreServiceComponent.REG_PROPERTY_SP_PREFIX_VALUE;
+    protected Resource getValuesFromConfigurationManager() {
+        return null;
     }
 
 }

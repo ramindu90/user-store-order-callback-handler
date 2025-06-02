@@ -23,20 +23,13 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.wso2.carbon.base.MultitenantConstants;
 import org.wso2.carbon.context.CarbonContext;
-import org.wso2.carbon.context.PrivilegedCarbonContext;
-import org.wso2.carbon.context.RegistryType;
 import org.wso2.carbon.identity.application.authentication.framework.context.AuthenticationContext;
 import org.wso2.carbon.identity.application.common.model.ServiceProvider;
-import org.wso2.carbon.identity.core.util.IdentityTenantUtil;
+import org.wso2.carbon.identity.configuration.mgt.core.ConfigurationManager;
+import org.wso2.carbon.identity.configuration.mgt.core.exception.ConfigurationManagementException;
+import org.wso2.carbon.identity.configuration.mgt.core.model.Resource;
 import org.wso2.carbon.identity.custom.callback.userstore.internal.CustomCallbackUserstoreServiceComponent;
 import org.wso2.carbon.identity.custom.callback.userstore.internal.CustomCallbackUserstoreServiceComponentHolder;
-import org.wso2.carbon.registry.core.Registry;
-import org.wso2.carbon.registry.core.Resource;
-import org.wso2.carbon.registry.core.exceptions.RegistryException;
-import org.wso2.carbon.registry.core.utils.RegistryUtils;
-import org.wso2.carbon.user.core.UserRealm;
-import org.wso2.carbon.user.core.UserStoreException;
-import org.wso2.carbon.user.mgt.UserMgtConstants;
 
 /**
  */
@@ -53,72 +46,17 @@ public class RegistryBasedUserStoreOrderCallbackHandler extends SimpleUserStoreO
     }
 
 
-    protected String getSpecialUserStoreDomainName() {
-
-        String specialUserStoreDomain = getValueFromRegistry(CustomCallbackUserstoreServiceComponent.REG_PROPERTY_USER_DOMAIN);
-        if (StringUtils.isBlank(specialUserStoreDomain)) {
-            specialUserStoreDomain = super.getSpecialUserStoreDomainName();
-        }
-        return specialUserStoreDomain;
-    }
-
-    protected String getSpecialSPPrefix() {
-
-        String specialSPPrefix =
-                getValueFromRegistry(CustomCallbackUserstoreServiceComponent.REG_PROPERTY_SP_PREFIX);
-        if (StringUtils.isBlank(specialSPPrefix)) {
-            specialSPPrefix = super.getSpecialSPPrefix();
-        }
-        return specialSPPrefix;
-    }
-
-    private String getValueFromRegistry(String resourcePropertyName) {
-
-        String resourcePropertyValue = "";
-
+    protected Resource getValuesFromConfigurationManager() {
+        ConfigurationManager configurationManager = getConfigurationManager();
+        Resource resource = null;
         try {
-            Registry registry = getConfigSystemRegistry();
-
-            log.info("path: " + CustomCallbackUserstoreServiceComponent.REG_PATH);
-            if (registry.resourceExists(CustomCallbackUserstoreServiceComponent.REG_PATH)) {
-                log.info("path exists: " + CustomCallbackUserstoreServiceComponent.REG_PATH);
-
-                boolean loggedInUserChanged = false;
-                UserRealm realm =
-                        (UserRealm) CarbonContext.getThreadLocalCarbonContext().getUserRealm();
-
-                String username = CarbonContext.getThreadLocalCarbonContext().getUsername();
-                if (StringUtils.isBlank(username) || !realm.getAuthorizationManager().
-                        isUserAuthorized(username, CustomCallbackUserstoreServiceComponent.REG_PATH,
-                                UserMgtConstants.EXECUTE_ACTION)) {
-
-                    //Logged in user is not authorized to create the permission.
-                    // Temporarily change the user to the admin for creating the permission
-                    PrivilegedCarbonContext.getThreadLocalCarbonContext().setUsername(
-                            realm.getRealmConfiguration().getAdminUserName());
-                    registry = (Registry) CarbonContext.getThreadLocalCarbonContext()
-                            .getRegistry(RegistryType.USER_CONFIGURATION);
-                    loggedInUserChanged = true;
-                }
-
-                Resource root = registry.get(CustomCallbackUserstoreServiceComponent.REG_PATH);
-                resourcePropertyValue = root.getProperty(resourcePropertyName);
-
-                if (loggedInUserChanged) {
-                    PrivilegedCarbonContext.getThreadLocalCarbonContext().setUsername(username);
-                }
-            }
-        } catch (RegistryException e) {
-            log.error("Error while reading registry.", e);
-        } catch (UserStoreException e) {
-            log.error("Error while setting authorization.", e);
+            resource = configurationManager.getResource(CustomCallbackUserstoreServiceComponentHolder.LDAP_RESOURCE_NAME,
+                    CustomCallbackUserstoreServiceComponentHolder.LDAP_RESOURCE_COMPONENT);
+        } catch (ConfigurationManagementException e) {
+            log.error("Error loading configuration manager", e);
+//            throw new RuntimeException(e);
         }
-
-        if (log.isDebugEnabled()) {
-            log.debug("Registry property: " + resourcePropertyName + " has value: " + resourcePropertyValue);
-        }
-
-        return resourcePropertyValue;
+        return resource;
     }
 
     /**
@@ -127,22 +65,11 @@ public class RegistryBasedUserStoreOrderCallbackHandler extends SimpleUserStoreO
      * @return config system registry
      * @throws org.wso2.carbon.registry.api.RegistryException
      */
-    private Registry getConfigSystemRegistry() {
+    private ConfigurationManager getConfigurationManager() {
 
         int tenantId = MultitenantConstants.INVALID_TENANT_ID;
-        try {
-            tenantId = CarbonContext.getThreadLocalCarbonContext().getTenantId();
-            RegistryUtils.initializeTenant(
-                    CustomCallbackUserstoreServiceComponentHolder.getInstance().getRegistryService(),
-                    tenantId);
-        } catch (org.wso2.carbon.registry.api.RegistryException e) {
-            log.error("Error loading tenant registry for tenant domain: " +
-                    IdentityTenantUtil.getTenantDomain(tenantId), e);
-        }
-        Registry tenantConfReg = (Registry) CarbonContext.getThreadLocalCarbonContext().getRegistry(
-                RegistryType.USER_CONFIGURATION);
-
-        return tenantConfReg;
+        tenantId = CarbonContext.getThreadLocalCarbonContext().getTenantId();
+        return CustomCallbackUserstoreServiceComponentHolder.getInstance().getConfigurationManager();
 
     }
 }

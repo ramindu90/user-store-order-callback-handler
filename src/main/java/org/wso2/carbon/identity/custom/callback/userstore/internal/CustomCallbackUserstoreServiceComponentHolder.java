@@ -19,6 +19,7 @@
 package org.wso2.carbon.identity.custom.callback.userstore.internal;
 
 import org.wso2.carbon.identity.application.mgt.ApplicationManagementService;
+import org.wso2.carbon.identity.configuration.mgt.core.ConfigurationManager;
 import org.wso2.carbon.registry.core.service.RegistryService;
 import org.wso2.carbon.user.core.service.RealmService;
 
@@ -30,7 +31,10 @@ public class CustomCallbackUserstoreServiceComponentHolder {
     private RegistryService registryService;
 
     private RealmService realmService;
+    private ConfigurationManager configurationManager;
     private ApplicationManagementService applicationManagementService;
+    public static final String LDAP_RESOURCE_NAME = "ldap";
+    public static final String LDAP_RESOURCE_COMPONENT = "ToLDAPMaps";
 
     public static CustomCallbackUserstoreServiceComponentHolder getInstance() {
 
@@ -52,6 +56,14 @@ public class CustomCallbackUserstoreServiceComponentHolder {
 
     public void setRealmService(RealmService realmService) {
         this.realmService = realmService;
+    }
+
+    public ConfigurationManager getConfigurationManager() {
+        return configurationManager;
+    }
+
+    public void setConfigurationManager(ConfigurationManager configurationManager) {
+        this.configurationManager = configurationManager;
     }
 
     public void setApplicationManagementService(ApplicationManagementService applicationManagementService) {

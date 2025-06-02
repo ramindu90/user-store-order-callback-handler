@@ -21,10 +21,16 @@ package org.wso2.carbon.identity.custom.callback.userstore.internal;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.osgi.service.component.ComponentContext;
+import org.osgi.service.component.annotations.Activate;
+import org.osgi.service.component.annotations.Component;
+import org.osgi.service.component.annotations.Reference;
+import org.osgi.service.component.annotations.ReferenceCardinality;
+import org.osgi.service.component.annotations.ReferencePolicy;
 import org.wso2.carbon.context.CarbonContext;
 import org.wso2.carbon.context.PrivilegedCarbonContext;
 import org.wso2.carbon.context.RegistryType;
 import org.wso2.carbon.identity.application.mgt.ApplicationManagementService;
+import org.wso2.carbon.identity.configuration.mgt.core.ConfigurationManager;
 import org.wso2.carbon.registry.core.Registry;
 import org.wso2.carbon.registry.core.Resource;
 import org.wso2.carbon.registry.core.ResourceImpl;
@@ -34,21 +40,11 @@ import org.wso2.carbon.user.api.UserRealm;
 import org.wso2.carbon.user.core.UserStoreException;
 import org.wso2.carbon.user.core.service.RealmService;
 
-/**
- * @scr.component name="custom.callback.userstore.service.component" immediate="true"
- * @scr.reference name="registry.service"
- * interface="org.wso2.carbon.registry.core.service.RegistryService"
- * cardinality="1..1" policy="dynamic" bind="setRegistryService"
- * unbind="unsetRegistryService"
- * @scr.reference name="user.realmservice.default"
- * interface="org.wso2.carbon.user.core.service.RealmService"
- * cardinality="1..1" policy="dynamic" bind="setRealmService"
- * unbind="unsetRealmService"
- * @scr.reference name="identity.application.management.component"
- * interface="org.wso2.carbon.identity.application.mgt.ApplicationManagementService"
- * cardinality="1..1" policy="dynamic" bind="setApplicationManagementService"
- * unbind="unsetApplicationManagementService"
- **/
+
+@SuppressWarnings("unused")
+@Component(
+        name = "org.wso2.carbon.identity.custom.callback.userstore",
+        immediate = true)
 public class CustomCallbackUserstoreServiceComponent {
     private static Log log = LogFactory.getLog(CustomCallbackUserstoreServiceComponent.class);
 
@@ -58,7 +54,7 @@ public class CustomCallbackUserstoreServiceComponent {
     public static final String REG_PROPERTY_USER_DOMAIN = "specialUserStoreDomainName";
     public static final String REG_PROPERTY_USER_DOMAIN_VALUE = "MAINFRAME";
 
-
+    @Activate
     protected void activate(ComponentContext context) {
 
         if (log.isDebugEnabled()) {
@@ -126,6 +122,13 @@ public class CustomCallbackUserstoreServiceComponent {
         log.info("CustomCallbackUserstoreServiceComponent bundle is deactivated");
     }
 
+    @Reference(
+            name = "registry.service",
+            service = RegistryService.class,
+            cardinality = ReferenceCardinality.MANDATORY,
+            policy = ReferencePolicy.DYNAMIC,
+            unbind = "unsetRegistryService"
+    )
     protected void setRegistryService(RegistryService registryService) {
         if (log.isDebugEnabled()) {
             log.debug("RegistryService set in CustomCallbackUserstoreServiceComponent bundle");
@@ -140,6 +143,12 @@ public class CustomCallbackUserstoreServiceComponent {
         CustomCallbackUserstoreServiceComponentHolder.getInstance().setRegistryService(null);
     }
 
+    @Reference(
+            name = "user.realmservice.default",
+            service = org.wso2.carbon.user.core.service.RealmService.class,
+            cardinality = ReferenceCardinality.MANDATORY,
+            policy = ReferencePolicy.DYNAMIC,
+            unbind = "unsetRealmService")
     protected void setRealmService(RealmService realmService) {
         if (log.isDebugEnabled()) {
             log.debug("Realm Service set in CustomCallbackUserstoreServiceComponent bundle");
@@ -154,6 +163,12 @@ public class CustomCallbackUserstoreServiceComponent {
         CustomCallbackUserstoreServiceComponentHolder.getInstance().setRealmService(null);
     }
 
+    @Reference(
+            name = "org.wso2.carbon.identity.application.mgt.ApplicationManagementService",
+            service = org.wso2.carbon.identity.application.mgt.ApplicationManagementService.class,
+            cardinality = ReferenceCardinality.MANDATORY,
+            policy = ReferencePolicy.DYNAMIC,
+            unbind = "unsetApplicationManagementService")
     protected void setApplicationManagementService(ApplicationManagementService applicationManagementService) {
         if (log.isDebugEnabled()) {
             log.debug("Application Management Service set in CustomCallbackUserstoreServiceComponent bundle");
@@ -166,5 +181,28 @@ public class CustomCallbackUserstoreServiceComponent {
             log.debug("Application Management Service unset in CustomCallbackUserstoreServiceComponent bundle");
         }
         CustomCallbackUserstoreServiceComponentHolder.getInstance().setApplicationManagementService(null);
+    }
+
+    @Reference(
+            name = "resource.configuration.manager",
+            service = ConfigurationManager.class,
+            cardinality = ReferenceCardinality.MANDATORY,
+            policy = ReferencePolicy.DYNAMIC,
+            unbind = "unregisterConfigurationManager"
+    )
+    protected void registerConfigurationManager(ConfigurationManager configurationManager) {
+
+        if (log.isDebugEnabled()) {
+            log.debug("Setting the configuration manager in Application Authentication Framework bundle.");
+        }
+        CustomCallbackUserstoreServiceComponentHolder.getInstance().setConfigurationManager(configurationManager);
+    }
+
+    protected void unregisterConfigurationManager(ConfigurationManager configurationManager) {
+
+        if (log.isDebugEnabled()) {
+            log.debug("Unsetting the configuration manager in Application Authentication Framework bundle.");
+        }
+        CustomCallbackUserstoreServiceComponentHolder.getInstance().setConfigurationManager(null);
     }
 }
